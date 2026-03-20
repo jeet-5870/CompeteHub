@@ -8,7 +8,7 @@ import Navbar from './components/Navbar';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
-console.log("Vite Env Check:", import.meta.env);
+// console.log("Vite Env Check:", import.meta.env);
 
 function App() {
   return (
