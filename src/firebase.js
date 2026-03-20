@@ -12,6 +12,11 @@ import {
   browserSessionPersistence,
   signOut
 } from "firebase/auth";
+import {
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence
+} from "firebase/auth";
 import { initializeFirestore, doc, setDoc, getDoc } from "firebase/firestore";
 
 // Your web app's Firebase configuration 
@@ -37,6 +42,19 @@ export const googleProvider = new GoogleAuthProvider();
 export const githubProvider = new GithubAuthProvider();
 
 export const firebaseAuth = {
+  async login(email, password, remember = false) { // Add remember parameter
+    try {
+      // Set persistence based on checkbox
+      const persistence = remember ? browserLocalPersistence : browserSessionPersistence;
+      await setPersistence(auth, persistence);
+
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      return userCredential.user;
+    } catch (error) {
+      console.error("Firebase Login Error:", error.code, error.message);
+      throw error;
+    }
+  },
   // Login with Email/Password
   // rememberMe=true → persist across browser sessions (localStorage)
   // rememberMe=false → persist only for this tab (sessionStorage)
