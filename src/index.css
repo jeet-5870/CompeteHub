@@ -1,0 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-bg-primary: #0d1117;
+  --color-bg-secondary: #161b22;
+  --color-bg-tertiary: #21262d;
+  --color-border: #30363d;
+  --color-border-muted: #21262d;
+  --color-text-primary: #e6edf3;
+  --color-text-secondary: #8b949e;
+  --color-text-muted: #484f58;
+  --color-accent-blue: #1f6feb;
+  --color-accent-green: #3fb950;
+  --color-accent-orange: #d29922;
+  --color-accent-red: #f85149;
+  --color-accent-purple: #8957e5;
+  --color-btn-primary-bg: #238636;
+  --color-btn-primary-border: #2ea043;
+  
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+  --font-sans: "Geist", "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+  --font-heading: "Mona Sans", "JetBrains Mono", -apple-system, "Segoe UI", sans-serif;
+  
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    margin: 0;
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  .text-xs-caps {
+    font-size: 11px;
+    line-height: 1.4;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .card-hover {
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+  .card-hover:hover {
+    border-color: var(--color-text-secondary);
+    background-color: #1c2128;
+  }
+}
