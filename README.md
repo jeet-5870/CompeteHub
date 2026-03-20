@@ -30,7 +30,7 @@
 
 ## 🌟 What is CompeteHub?
 
-CompeteHub is a dark-themed, single-page dashboard built for competitive programmers. It consolidates your stats from **Codeforces**, **LeetCode**, **AtCoder**, and **CodeChef** into one sleek interface — no more switching between tabs during contest prep.
+CompeteHub is a single-page dashboard built for competitive programmers. It consolidates your stats from **Codeforces**, **LeetCode**, **AtCoder**, and **CodeChef** into one sleek interface — no more switching between tabs during contest prep.
 
 ---
 
@@ -139,7 +139,7 @@ Create a `.env` file in the project root:
 
 ```env
 # Firebase (from Project Settings → Your Apps → SDK setup)
-VITE_FIREBASE_API_KEY=AIza...
+VITE_FIREBASE_API_KEY
 VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=your-project-id
 VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
@@ -151,7 +151,6 @@ VITE_CLIST_USERNAME=your_clist_username
 VITE_CLIST_API_KEY=your_clist_api_key
 ```
 
-> ⚠️ `.env` is in `.gitignore` — it will never be committed.
 
 ### 3 — Run
 
