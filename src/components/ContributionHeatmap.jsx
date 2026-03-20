@@ -2,6 +2,73 @@ import React, { useMemo, useEffect, useState, memo } from 'react';
 import { apiService } from '../services/apiService';
 import { formatDateIST } from '../utils/dateUtils';
 
+// ── Skeleton ────────────────────────────────────────────────────────────────
+const SKELETON_WEEKS = 53;
+const SKELETON_DAYS  = 7;
+
+const HeatmapSkeleton = () => (
+  <div className="border border-[var(--color-border)] rounded-lg p-4 bg-[var(--color-bg-primary)] mt-4">
+    {/* Header */}
+    <div className="flex items-center justify-between mb-4">
+      <div className="h-4 w-48 rounded bg-[var(--color-bg-secondary)] animate-pulse" />
+      <div className="h-3 w-28 rounded bg-[var(--color-bg-secondary)] animate-pulse" />
+    </div>
+
+    <div className="flex flex-col gap-1 overflow-x-auto pb-4">
+      {/* Month label row */}
+      <div className="flex gap-[3px] ml-8 mb-1">
+        {Array.from({ length: 12 }).map((_, i) => (
+          <div
+            key={i}
+            className="h-3 rounded bg-[var(--color-bg-secondary)] animate-pulse"
+            style={{ width: `${Math.floor(SKELETON_WEEKS / 12) * 13}px`, animationDelay: `${i * 40}ms` }}
+          />
+        ))}
+      </div>
+
+      <div className="flex gap-[3px]">
+        {/* Day label column */}
+        <div className="flex flex-col gap-[3px] w-7 pt-[2px]">
+          {['', 'Mon', '', 'Wed', '', 'Fri', ''].map((label, i) => (
+            <div key={i} className="h-[10px] flex items-center">
+              {label && (
+                <div className="h-2 w-5 rounded bg-[var(--color-bg-secondary)] animate-pulse" style={{ animationDelay: `${i * 30}ms` }} />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Grid */}
+        <div className="flex gap-[3px]">
+          {Array.from({ length: SKELETON_WEEKS }).map((_, wIdx) => (
+            <div key={wIdx} className="flex flex-col gap-[3px]">
+              {Array.from({ length: SKELETON_DAYS }).map((_, dIdx) => (
+                <div
+                  key={dIdx}
+                  className="w-[10px] h-[10px] rounded-sm bg-[var(--color-bg-secondary)] animate-pulse"
+                  style={{ animationDelay: `${(wIdx * 7 + dIdx) * 3}ms` }}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    {/* Legend */}
+    <div className="flex items-center justify-end gap-2 mt-2">
+      <div className="h-3 w-6 rounded bg-[var(--color-bg-secondary)] animate-pulse" />
+      <div className="flex gap-[3px]">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="w-[10px] h-[10px] rounded-sm bg-[var(--color-bg-secondary)] animate-pulse" style={{ animationDelay: `${i * 60}ms` }} />
+        ))}
+      </div>
+      <div className="h-3 w-6 rounded bg-[var(--color-bg-secondary)] animate-pulse" />
+    </div>
+  </div>
+);
+
+// ── Heatmap ──────────────────────────────────────────────────────────────────
 const ContributionHeatmap = memo(({ userId, githubUsername }) => {
   const [externalStats, setExternalStats] = useState({});
   const [loading, setLoading] = useState(false);
@@ -108,8 +175,10 @@ const ContributionHeatmap = memo(({ userId, githubUsername }) => {
     return labels.filter((label, i) => i === 0 || label.index - labels[i - 1].index > 2);
   }, [heatmapData]);
 
+  if (loading) return <HeatmapSkeleton />;
+
   return (
-    <div className={`border border-[var(--color-border)] rounded-lg p-4 bg-[var(--color-bg-primary)] mt-4 transition-opacity duration-300 ${loading ? 'opacity-50' : 'opacity-100'}`}>
+    <div className="border border-[var(--color-border)] rounded-lg p-4 bg-[var(--color-bg-primary)] mt-4">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
           {githubUsername ? `${githubUsername}'s` : 'Your'} contributions in the last year

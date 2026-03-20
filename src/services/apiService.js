@@ -5,11 +5,11 @@ export const apiService = {
   // Fetch platform details for the Platforms page (Static for now)
   async getPlatforms() {
     return [
-      { id: 1, name: 'Codeforces', desc: 'The most popular competitive programming platform with regular contests and a strong rating system.', tags: ['Competitive', 'Olympiad'], problems: '9,450', users: '1.2M', color: '#1f6feb', bg: 'rgba(31,111,235,0.15)' },
-      { id: 2, name: 'LeetCode', desc: 'The best platform to help you enhance your skills, expand your knowledge and prepare for technical interviews.', tags: ['Interview Prep'], problems: '3,120', users: '4.5M', color: '#f0a500', bg: 'rgba(255,161,22,0.15)' },
-      { id: 3, name: 'AtCoder', desc: 'Japanese contest platform known for high-quality mathematical and algorithmic problems.', tags: ['Competitive', 'Olympiad'], problems: '4,200', users: '350K', color: '#596de9', bg: 'rgba(89,109,233,0.15)' },
-      { id: 4, name: 'CodeChef', desc: 'Global programming community hosting long contests, cook-offs, and lunchtime competitions.', tags: ['Competitive', 'Beginner-friendly'], problems: '12,500', users: '2.1M', color: '#a1887f', bg: 'rgba(93,64,55,0.3)' },
-      { id: 5, name: 'HackerRank', desc: 'Practice coding, prepare for interviews, and get hired. Domain-specific tracks available.', tags: ['Interview Prep', 'Beginner-friendly'], problems: '2,800', users: '7.8M', color: '#3fb950', bg: 'rgba(63,185,80,0.15)' }
+      { id: 1, name: 'Codeforces', url: 'https://codeforces.com', desc: 'The most popular competitive programming platform with regular contests and a strong rating system.', tags: ['Competitive', 'Olympiad'], problems: '9,450', users: '1.2M', color: '#1f6feb', bg: 'rgba(31,111,235,0.15)' },
+      { id: 2, name: 'LeetCode', url: 'https://leetcode.com', desc: 'The best platform to help you enhance your skills, expand your knowledge and prepare for technical interviews.', tags: ['Interview Prep'], problems: '3,120', users: '4.5M', color: '#f0a500', bg: 'rgba(255,161,22,0.15)' },
+      { id: 3, name: 'AtCoder', url: 'https://atcoder.jp', desc: 'Japanese contest platform known for high-quality mathematical and algorithmic problems.', tags: ['Competitive', 'Olympiad'], problems: '4,200', users: '350K', color: '#596de9', bg: 'rgba(89,109,233,0.15)' },
+      { id: 4, name: 'CodeChef', url: 'https://codechef.com', desc: 'Global programming community hosting long contests, cook-offs, and lunchtime competitions.', tags: ['Competitive', 'Beginner-friendly'], problems: '12,500', users: '2.1M', color: '#a1887f', bg: 'rgba(93,64,55,0.3)' },
+      { id: 5, name: 'HackerRank', url: 'https://hackerrank.com', desc: 'Practice coding, prepare for interviews, and get hired. Domain-specific tracks available.', tags: ['Interview Prep', 'Beginner-friendly'], problems: '2,800', users: '7.8M', color: '#3fb950', bg: 'rgba(63,185,80,0.15)' }
     ];
   },
 

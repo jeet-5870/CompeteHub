@@ -1,5 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const ProtectedRoute = ({ children }) => {
@@ -7,8 +8,8 @@ const ProtectedRoute = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg-primary)] text-[var(--color-text-primary)]">
-        <div className="font-mono text-xl animate-pulse">Initializing...</div>
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg-primary)]">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent-blue)]" />
       </div>
     );
   }

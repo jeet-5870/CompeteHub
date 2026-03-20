@@ -225,7 +225,21 @@ const Profile = () => {
           <div className="flex flex-col gap-2 text-sm text-[var(--color-text-secondary)]">
             <div className="flex items-center gap-2"><MapPin size={16} /> Location not set</div>
             <div className="flex items-center gap-2"><Building size={16} /> Organization not set</div>
-            <div className="flex items-center gap-2"><LinkIcon size={16} /> <a href="#" className="text-[var(--color-accent-blue)] hover:underline">github.com/{user?.displayName?.replace(/\s+/g, '-').toLowerCase() || 'hero'}</a></div>
+            <div className="flex items-center gap-2">
+              <LinkIcon size={16} />
+              {githubHandle ? (
+                <a
+                  href={`https://github.com/${githubHandle}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[var(--color-accent-blue)] hover:underline"
+                >
+                  github.com/{githubHandle}
+                </a>
+              ) : (
+                <span className="text-[var(--color-text-muted)] italic text-sm">No GitHub handle set</span>
+              )}
+            </div>
             <div className="flex items-center gap-2 text-[var(--color-text-muted)] mt-2"><Calendar size={16} /> {getJoinedDate()}</div>
           </div>
 

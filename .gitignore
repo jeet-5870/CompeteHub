@@ -35,9 +35,6 @@ lerna-debug.log*
 .turbo/
 *.tsbuildinfo
 
-# ─── Assets to exclude ────────────────────────────────────────────────────────
-*.svg
-
 # ─── OS-Generated ─────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
@@ -65,3 +62,9 @@ coverage/
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+
+# ─── Assets ───────────────────────────────────────────────────────────────────
+# Ignore stray SVGs at root, but allow app icons inside src/ and public/
+*.svg
+!src/**/*.svg
+!public/**/*.svg

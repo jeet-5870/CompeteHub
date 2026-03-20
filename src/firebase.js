@@ -3,9 +3,13 @@ import {
   getAuth,
   GoogleAuthProvider,
   GithubAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
   signOut
 } from "firebase/auth";
 import { initializeFirestore, doc, setDoc, getDoc } from "firebase/firestore";
@@ -34,8 +38,12 @@ export const githubProvider = new GithubAuthProvider();
 
 export const firebaseAuth = {
   // Login with Email/Password
-  async login(email, password) {
+  // rememberMe=true → persist across browser sessions (localStorage)
+  // rememberMe=false → persist only for this tab (sessionStorage)
+  async login(email, password, rememberMe = true) {
     try {
+      const persistence = rememberMe ? browserLocalPersistence : browserSessionPersistence;
+      await setPersistence(auth, persistence);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       return userCredential.user;
     } catch (error) {
@@ -55,16 +63,19 @@ export const firebaseAuth = {
     }
   },
 
-  // OAuth Login/Signup 
-  async oauthSignIn(providerName) {
-    try {
-      const provider = providerName === 'github' ? githubProvider : googleProvider;
-      const result = await signInWithPopup(auth, provider);
-      return result.user;
-    } catch (error) {
-      console.error("Firebase OAuth Error:", error.code, error.message);
-      throw error;
-    }
+  // Initiate OAuth redirect (Google or GitHub)
+  // Call this when the user clicks a social login button.
+  async oauthRedirect(providerName) {
+    const provider = providerName === 'github' ? githubProvider : googleProvider;
+    await signInWithRedirect(auth, provider);
+    // The page will navigate away — no return value.
+  },
+
+  // Capture the OAuth result after returning from the provider redirect.
+  // Call this once on mount in Login/Signup components.
+  async getRedirectUser() {
+    const result = await getRedirectResult(auth);
+    return result?.user ?? null;
   },
 
   // Logout

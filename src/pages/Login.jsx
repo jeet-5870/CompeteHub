@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Code, Eye, EyeOff, Github } from 'lucide-react';
-import { auth, googleProvider, githubProvider, firebaseAuth } from '../firebase';
-import { signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { firebaseAuth } from '../firebase';
+import { ACTIVITY_KEY } from '../context/AuthContext';
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -16,8 +17,8 @@ const Login = () => {
   useEffect(() => {
     const handleRedirect = async () => {
       try {
-        const result = await getRedirectResult(auth);
-        if (result?.user) {
+        const user = await firebaseAuth.getRedirectUser();
+        if (user) {
           navigate('/platforms');
         }
       } catch (err) {
@@ -48,16 +49,15 @@ const Login = () => {
       setError("Please enter a valid email address.");
       return;
     }
-    await authenticate(firebaseAuth.login(email, password));
+    await authenticate(firebaseAuth.login(email, password, rememberMe));
   };
 
   const handleOAuthLogin = async (providerName) => {
-    const provider = providerName === 'google' ? googleProvider : githubProvider;
     setError(null);
     setLoading(true);
     try {
-      await signInWithRedirect(auth, provider);
-      // Page will redirect, no need to handle result here
+      await firebaseAuth.oauthRedirect(providerName);
+      // Page will redirect — no further action needed
     } catch (err) {
       setError(mapAuthError(err));
       setLoading(false);
@@ -71,6 +71,8 @@ const Login = () => {
     try {
       const user = await authPromise;
       if (user) {
+        // Seed the inactivity clock the moment they log in
+        localStorage.setItem(ACTIVITY_KEY, Date.now().toString());
         navigate('/platforms');
       } else {
         throw new Error("Authentication failed unexpectedly.");
@@ -154,6 +156,8 @@ const Login = () => {
             <input
               type="checkbox"
               id="remember"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
               className="rounded bg-[var(--color-bg-primary)] border-[var(--color-border)] w-3.5 h-3.5 accent-[var(--color-accent-blue)]"
             />
             <label htmlFor="remember" className="text-sm text-[var(--color-text-primary)] cursor-pointer">

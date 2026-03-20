@@ -144,7 +144,9 @@ const Platforms = () => {
               </div>
               
               <a 
-                href="#" 
+                href={platform.url}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex items-center gap-1 text-[13px] font-medium text-[var(--color-accent-blue)] hover:underline"
               >
                 Visit <ExternalLink size={12} />

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Code, Eye, EyeOff, Github } from 'lucide-react';
-import { auth, googleProvider, githubProvider, firebaseAuth } from '../firebase';
-import { signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { firebaseAuth } from '../firebase';
 
 const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -18,8 +17,8 @@ const Signup = () => {
   useEffect(() => {
     const handleRedirect = async () => {
       try {
-        const result = await getRedirectResult(auth);
-        if (result?.user) {
+        const user = await firebaseAuth.getRedirectUser();
+        if (user) {
           navigate('/platforms');
         }
       } catch (err) {
@@ -55,11 +54,11 @@ const Signup = () => {
   };
 
   const handleOAuthSignup = async (providerName) => {
-    const provider = providerName === 'google' ? googleProvider : githubProvider;
     setError(null);
     setLoading(true);
     try {
-      await signInWithRedirect(auth, provider);
+      await firebaseAuth.oauthRedirect(providerName);
+      // Page will redirect — no further action needed
     } catch (err) {
       setError(mapAuthError(err));
       setLoading(false);
