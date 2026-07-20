@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Code, ChevronDown, User, LogOut, Grid, Calendar } from 'lucide-react';
+import { Code, ChevronDown, User, LogOut, Grid, Calendar, LayoutGrid } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { firebaseAuth } from '../firebase';
 
@@ -24,7 +24,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="sticky top-0 z-50 w-full bg-[rgba(13,17,23,0.95)] backdrop-blur-md border-b border-[var(--color-border)] text-[var(--color-text-primary)]">
+    <nav className="sticky top-0 z-50 w-full bg-[var(--color-glass-primary)] backdrop-blur-md border-b border-[var(--color-border)] text-[var(--color-text-primary)]">
       <div className="max-w-[1200px] mx-auto px-4 lg:px-8 h-16 flex items-center justify-between">
         
         {/* Logo */}
@@ -37,6 +37,14 @@ const Navbar = () => {
 
         {/* Navigation Links */}
         <div className="hidden md:flex items-center gap-6">
+          <NavLink 
+            to="/dashboard" 
+            className={({ isActive }) => 
+              `text-sm font-medium transition-colors hover:text-[var(--color-text-primary)] ${isActive ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-secondary)]'}`
+            }
+          >
+            Dashboard
+          </NavLink>
           <NavLink 
             to="/platforms" 
             className={({ isActive }) => 
@@ -94,6 +102,15 @@ const Navbar = () => {
               </div>
               {/* Mobile Only Navigation Links in Dropdown */}
               <div className="md:hidden border-b border-[var(--color-border-muted)] pb-1 mb-1">
+                <NavLink 
+                  to="/dashboard" 
+                  className={({ isActive }) => 
+                    `flex items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-[var(--color-bg-tertiary)] ${isActive ? 'text-[var(--color-accent-blue)] bg-[var(--color-bg-tertiary)]/30' : 'text-[var(--color-text-secondary)] hover:text-white'}`
+                  }
+                  onClick={() => setDropdownOpen(false)}
+                >
+                  <LayoutGrid size={14} /> Dashboard
+                </NavLink>
                 <NavLink 
                   to="/platforms" 
                   className={({ isActive }) => 

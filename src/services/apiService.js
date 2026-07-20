@@ -1,381 +1,215 @@
-// Centralized Service for Data Fetching
-// This service acts as a bridge to Firestore or external APIs.
-
 export const apiService = {
-  // Fetch platform details for the Platforms page (Static for now)
   async getPlatforms() {
     return [
-      { id: 1, name: 'Codeforces', url: 'https://codeforces.com', desc: 'The most popular competitive programming platform with regular contests and a strong rating system.', tags: ['Competitive', 'Olympiad'], problems: '9,450', users: '1.2M', color: '#1f6feb', bg: 'rgba(31,111,235,0.15)' },
-      { id: 2, name: 'LeetCode', url: 'https://leetcode.com', desc: 'The best platform to help you enhance your skills, expand your knowledge and prepare for technical interviews.', tags: ['Interview Prep'], problems: '3,120', users: '4.5M', color: '#f0a500', bg: 'rgba(255,161,22,0.15)' },
-      { id: 3, name: 'AtCoder', url: 'https://atcoder.jp', desc: 'Japanese contest platform known for high-quality mathematical and algorithmic problems.', tags: ['Competitive', 'Olympiad'], problems: '4,200', users: '350K', color: '#596de9', bg: 'rgba(89,109,233,0.15)' },
-      { id: 4, name: 'CodeChef', url: 'https://codechef.com', desc: 'Global programming community hosting long contests, cook-offs, and lunchtime competitions.', tags: ['Competitive', 'Beginner-friendly'], problems: '12,500', users: '2.1M', color: '#a1887f', bg: 'rgba(93,64,55,0.3)' },
-      { id: 5, name: 'HackerRank', url: 'https://hackerrank.com', desc: 'Practice coding, prepare for interviews, and get hired. Domain-specific tracks available.', tags: ['Interview Prep', 'Beginner-friendly'], problems: '2,800', users: '7.8M', color: '#3fb950', bg: 'rgba(63,185,80,0.15)' }
+      { id: 1, resourceId: 1, name: 'Codeforces', url: 'https://codeforces.com', desc: 'The most popular competitive programming platform with regular contests and a strong rating system.', tags: ['Competitive', 'Olympiad'], problems: '9,450', users: '1.2M', color: 'var(--color-platform-cf)', bg: 'rgba(31,111,235,0.15)' },
+      { id: 2, resourceId: 102, name: 'LeetCode', url: 'https://leetcode.com', desc: 'The best platform to help you enhance your skills, expand your knowledge and prepare for technical interviews.', tags: ['Interview Prep'], problems: '3,120', users: '4.5M', color: 'var(--color-platform-lc)', bg: 'rgba(255,161,22,0.15)' },
+      { id: 3, resourceId: 93, name: 'AtCoder', url: 'https://atcoder.jp', desc: 'Japanese contest platform known for high-quality mathematical and algorithmic problems.', tags: ['Competitive', 'Olympiad'], problems: '4,200', users: '350K', color: 'var(--color-platform-at)', bg: 'rgba(89,109,233,0.15)' },
+      { id: 4, resourceId: 2, name: 'CodeChef', url: 'https://codechef.com', desc: 'Global programming community hosting long contests, cook-offs, and lunchtime competitions.', tags: ['Competitive', 'Beginner-friendly'], problems: '12,500', users: '2.1M', color: 'var(--color-platform-cc)', bg: 'rgba(93,64,55,0.3)' },
+      { id: 5, resourceId: 63, name: 'HackerRank', url: 'https://hackerrank.com', desc: 'Practice coding, prepare for interviews, and get hired. Domain-specific tracks available.', tags: ['Interview Prep', 'Beginner-friendly'], problems: '2,800', users: '7.8M', color: 'var(--color-platform-hr)', bg: 'rgba(63,185,80,0.15)' },
     ];
   },
 
-  // Normalize contest data from various sources into a unified format
-  normalizeContestData(raw, source) {
-    try {
-      if (source === 'codeforces') {
-        // Include both upcoming (BEFORE) and ongoing (CODING) contests
-        if (raw.phase !== 'BEFORE' && raw.phase !== 'CODING') return null;
-        const startTime = raw.startTimeSeconds * 1000;
-        return {
-          name: raw.name,
-          url: `https://codeforces.com/contests/${raw.id}`,
-          platform: 'Codeforces',
-          startTime: startTime,
-          duration: raw.durationSeconds,
-          isLive: raw.phase === 'CODING' || (startTime <= Date.now() && startTime > Date.now() - 1800000),
-          color: '#1f6feb',
-          tags: [raw.type, `Div. ${raw.name.match(/Div\.\s*(\d+)/)?.[1] || 'All'}`]
-        };
-      }
-
-      if (source === 'atcoder') {
-        const startTime = raw.start_epoch_second * 1000;
-        // Allow contests that started in the last 30 minutes (Ongoing)
-        if (startTime <= Date.now() - 1800000) return null;
-        return {
-          name: raw.title,
-          url: `https://atcoder.jp/contests/${raw.id}`,
-          platform: 'AtCoder',
-          startTime: startTime,
-          duration: raw.duration_second,
-          isLive: startTime <= Date.now(),
-          color: '#596de9',
-          tags: [raw.rate_range || 'All']
-        };
-      }
-
-      if (source === 'leetcode-clist') {
-        const startTime = new Date(raw.start).getTime();
-        // Allow contests that started in the last 30 minutes (Ongoing)
-        if (startTime <= Date.now() - 1800000) return null; 
-        
-        // Ensure resource.id is treated as a number for comparison
-        const rid = Number(raw.resource?.id);
-        let platform = 'Clist';
-        let color = '#f0a500';
-        
-        // Platform detection based on resource_id mapping
-        if (rid === 1) { platform = 'Codeforces'; color = '#1f6feb'; }
-        else if (rid === 102) { platform = 'LeetCode'; color = '#ffa116'; } 
-        else if (rid === 93) { platform = 'AtCoder'; color = '#2d2d2d'; }
-        else if (rid === 2) { platform = 'CodeChef'; color = '#5b4638'; }
-        
-        return {
-          name: raw.event,
-          url: raw.href || `https://clist.by/contest/${raw.id}`,
-          platform: platform,
-          startTime: startTime,
-          duration: raw.duration,
-          isLive: startTime <= Date.now(),
-          color: color,
-          tags: ['Rated', platform]
-        };
-      }
-    } catch (e) {
-      console.warn(`Normalization error for ${source}:`, e);
-      return null;
-    }
-    return null;
-  },
-
-  // Fetch upcoming contests using a Hybrid Multi-Source strategy (CF, AtCoder, Clist)
-  async getContests() {
-    // Strict scoping of AbortController for signal safety
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // Massive 30s timeout for stability
-
-    const clistUser = import.meta.env.VITE_CLIST_USERNAME;
-    const clistKey = import.meta.env.VITE_CLIST_API_KEY;
-    
-    // Auth Verification: Skip fetch if credentials are missing
-    if (!clistUser || !clistKey) {
-      console.error("Missing Clist Credentials in .env");
-    }
-    
-    // Correct URL Construction: Append auth params before the proxy wrapper
-    const now = new Date().toISOString();
-    const clistBaseUrl = `https://clist.by/api/v1/contest/?resource_id__in=1,2,93,102&start__gt=${now}&order_by=start&limit=100`;
-    const clistAuthUrl = `${clistBaseUrl}&username=${clistUser || ''}&api_key=${clistKey || ''}`;
-
-    const sources = [
-      { id: 'codeforces', url: 'https://codeforces.com/api/contest.list?gym=false', useProxy: false },
-      { id: 'atcoder', url: 'https://kenkoooo.com/atcoder/resources/contests.json', useProxy: true },
-      { id: 'leetcode-clist', url: clistAuthUrl, useProxy: true, skip: !clistUser || !clistKey }
-    ];
-
-    try {
-      const results = await Promise.allSettled(
-        sources.map(src => {
-          if (src.skip) {
-            return Promise.resolve({ id: src.id, data: [], error: true });
-          }
-          
-          // Clist Optimization: Try direct fetch first, fallback to proxy
-          if (src.id === 'leetcode-clist') {
-            return fetch(src.url, { signal: controller.signal })
-              .then(async res => {
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                return { id: src.id, data };
-              })
-              .catch(async () => {
-                // Proxy Fallback: Use CORSProxy.io for resilience
-                const proxiedUrl = `https://corsproxy.io/?${src.url}`;
-                return fetch(proxiedUrl, { signal: controller.signal })
-                  .then(async res => {
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    const data = await res.json();
-                    return { id: src.id, data };
-                  })
-                  .catch(err => ({ id: src.id, data: [], error: true }));
-              });
-          }
-
-          const finalUrl = src.useProxy 
-            ? `https://corsproxy.io/?${src.url}` 
-            : src.url;
-            
-          return fetch(finalUrl, { signal: controller.signal })
-            .then(async res => {
-              if (!res.ok) throw new Error(`HTTP ${res.status}`);
-              const data = await res.json();
-              return { id: src.id, data };
-            })
-            .catch(err => {
-              console.warn(`Source ${src.id} failed:`, err.name === 'AbortError' ? 'Timeout' : err.message);
-              return { id: src.id, data: [], error: true };
-            });
-        })
-      );
-      clearTimeout(timeoutId);
-
-      let allContests = [];
-      results.forEach(result => {
-        if (result.status === 'fulfilled') {
-          const { id, data, error } = result.value;
-          if (error) return;
-
-          let rawList = [];
-          if (id === 'codeforces' && data.status === 'OK') rawList = data.result;
-          else if (id === 'atcoder') rawList = data;
-          else if (id === 'leetcode-clist') rawList = data.objects || [];
-
-          const normalized = rawList
-            .map(item => this.normalizeContestData(item, id))
-            .filter(Boolean);
-
-          allContests = [...allContests, ...normalized];
-        }
-      });
-
-      // Deduplication by name and sorting by startTime (chronological)
-      const seenNames = new Set();
-      const uniqueContests = allContests
-        .filter(contest => {
-          if (seenNames.has(contest.name)) return false;
-          seenNames.add(contest.name);
-          return true;
-        })
-        .sort((a, b) => a.startTime - b.startTime)
-        .map((c, i) => ({ ...c, id: i }));
-
-      // If no contests found overall, return fallback
-      if (uniqueContests.length === 0) throw new Error("Zero contests captured");
-
-      return {
-        data: uniqueContests.slice(0, 25),
-        isFallback: false
-      };
-
-    } catch (error) {
-      clearTimeout(timeoutId);
-      console.warn("Multi-source fetch failed. Using fallback data.", error);
-
-      const fallbackData = [
-        { id: 'fb1', name: 'Codeforces Round (Archived)', url: 'https://codeforces.com', platform: 'Codeforces', startTime: Date.now() + 86400000, duration: 7200, color: '#1f6feb', tags: ['Offline-Sync'] },
-        { id: 'fb2', name: 'LeetCode Weekly (Archived)', url: 'https://leetcode.com', platform: 'LeetCode', startTime: Date.now() + 172800000, duration: 5400, color: '#f0a500', tags: ['Offline-Sync'] }
-      ];
-
-      return {
-        data: fallbackData,
-        isFallback: true
-      };
-    }
-  },
-
-  // Helper to get consistent platform colors
   getPlatformColor(site) {
     const colors = {
-      'CodeForces': '#1f6feb',
-      'LeetCode': '#f0a500',
-      'AtCoder': '#596de9',
-      'CodeChef': '#a1887f',
-      'HackerRank': '#3fb950',
-      'HackerEarth': '#8957e5'
+      Codeforces: 'var(--color-platform-cf)',
+      LeetCode: 'var(--color-platform-lc)',
+      AtCoder: 'var(--color-platform-at)',
+      CodeChef: 'var(--color-platform-cc)',
+      HackerRank: 'var(--color-platform-hr)',
+      HackerEarth: 'var(--color-platform-he)',
     };
     return colors[site] || '#e6edf3';
   },
 
-  // Fetch real Codeforces data
-  async getCodeforcesUser(handle) {
-    if (!handle) return null;
-    try {
-      const response = await fetch(`https://codeforces.com/api/user.info?handles=${handle}`);
-      const data = await response.json();
-      if (data.status === 'OK' && data.result.length > 0) {
-        const user = data.result[0];
-        return {
-          rating: user.rating || 0,
-          maxRating: user.maxRating || 0,
-          rank: user.rank || 'Unrated',
-          trend: 'up' // Default
-        };
-      }
-      throw new Error('User not found');
-    } catch (error) {
-      console.error("Codeforces API error:", error);
-      return { error: 'Platform Not Found' };
+  /**
+   *
+   * @param {string} handle     
+   * @param {number} resourceId  
+   * @returns {{ rating: number, n_solved: number, rank: string }}
+   */
+  async getClistUserStats(handle, resourceId) {
+    const DEFAULT = { rating: 0, n_solved: 0, rank: 'N/A' };
+    if (!handle) return DEFAULT;
+
+    const clistUser = import.meta.env.VITE_CLIST_USERNAME;
+    const clistKey = import.meta.env.VITE_CLIST_API_KEY;
+    if (!clistUser || !clistKey) {
+      console.warn('getClistUserStats: Missing VITE_CLIST_USERNAME or VITE_CLIST_API_KEY');
+      return DEFAULT;
     }
-  },
 
-  // Fetch real LeetCode data using multi-proxy fallback and AllOrigins resilience
-  async getLeetCodeUser(username) {
-    if (!username) return null;
+    const endpoint = [
+      'https://clist.by/api/v1/account/',
+      `?handle=${encodeURIComponent(handle)}`,
+      `&resource_id=${resourceId}`,
+      `&username=${clistUser}`,
+      `&api_key=${clistKey}`,
+    ].join('');
 
-    const fetchWithTimeout = async (url, timeout = 5000) => {
+    console.log(`[ApiService] 📡 GET: https://clist.by/api/v1/account/?handle=${handle}&resource_id=${resourceId}`);
+
+    const proxiedUrl = `https://corsproxy.io/?${encodeURIComponent(endpoint)}`;
+
+    try {
       const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), timeout);
-      try {
-        const response = await fetch(`https://corsproxy.io/?${url}`, {
-          signal: controller.signal
-        });
-        clearTimeout(id);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return await response.json();
-      } catch (err) {
-        clearTimeout(id);
-        throw err;
-      }
-    };
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    const proxies = [
-      `https://leetcode-stats-api.herokuapp.com/${username}`,
-      `https://leetcode-api-faisalshohag.vercel.app/${username}`
-    ];
+      const resp = await fetch(proxiedUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
 
-    for (const proxyUrl of proxies) {
-      try {
-        const data = await fetchWithTimeout(proxyUrl);
-        // Normalize based on which proxy responded (they have slightly different schemas)
-        if (data.status === 'success' || data.totalSolved !== undefined) {
-          return {
-            totalSolved: data.totalSolved || data.solvedOverAll || 0,
-            ranking: data.ranking || data.rank || 'N/A',
-            contributionPoints: data.contributionPoints || 0,
-            rank: (data.ranking || data.rank) ? `Rank ${Number(data.ranking || data.rank).toLocaleString()}` : 'N/A'
-          };
-        }
-      } catch (error) {
-        console.warn(`LeetCode proxy ${proxyUrl} failed:`, error.message);
-        continue; // Try next proxy
+      if (resp.status === 404) {
+        console.warn(`[ApiService] 🔍 Handle not found on platform: ${handle}`);
+        return { rating: 0, n_solved: 0, rank: 'Not Found', platformStatus: 'offline' };
       }
+
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+      const data = await resp.json();
+      const account = data?.objects?.[0];
+      if (!account) {
+        console.warn(`[ApiService] ⚠️ Account object missing for: ${handle}`);
+        return { rating: 0, n_solved: 0, rank: 'Not Found', platformStatus: 'offline' };
+      }
+
+      return {
+        rating: account.resource_rank ?? account.rating ?? 0,
+        n_solved: account.n_contests ?? account.n_solved ?? 0,
+        rank: account.rank || 'N/A',
+      };
+    } catch (err) {
+      console.warn(`getClistUserStats failed for "${handle}" (resource ${resourceId}):`, err.message);
+      return DEFAULT;
+    }
+  },
+
+  _normalizeContest(raw) {
+    try {
+      const startTime = new Date(raw.start).getTime();
+      if (startTime <= Date.now() - 1_800_000) return null;
+
+      const rid = Number(raw.resource?.id);
+      const PLATFORM_MAP = {
+        1: { name: 'Codeforces', color: '#1f6feb' },
+        2: { name: 'CodeChef', color: '#a1887f' },
+        93: { name: 'AtCoder', color: '#596de9' },
+        102: { name: 'LeetCode', color: '#ffa116' },
+      };
+      const { name: platform = 'Clist', color = '#e6edf3' } = PLATFORM_MAP[rid] ?? {};
+
+      return {
+        name: raw.event,
+        url: raw.href || `https://clist.by/contest/${raw.id}`,
+        platform,
+        startTime,
+        duration: raw.duration,
+        isLive: startTime <= Date.now(),
+        color,
+        tags: ['Rated', platform],
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  async getContests() {
+    const clistUser = import.meta.env.VITE_CLIST_USERNAME;
+    const clistKey = import.meta.env.VITE_CLIST_API_KEY;
+
+    const CACHE_KEY = 'competehub_contests';
+    const CACHE_TIME_KEY = 'competehub_contests_last_fetch';
+    const cached = sessionStorage.getItem(CACHE_KEY);
+    const lastFetch = sessionStorage.getItem(CACHE_TIME_KEY);
+    const TEN_MINUTES = 10 * 60 * 1000;
+
+    if (cached && lastFetch && (Date.now() - lastFetch < TEN_MINUTES)) {
+      console.log('[ApiService] ⚡ Using cached contest data');
+      return { data: JSON.parse(cached), isFallback: false };
     }
 
-    // Comprehensive Fallback if all proxies fail
-    console.error("All LeetCode proxies failed.");
-    return {
-      error: 'Sync Error',
-      totalSolved: 'N/A',
-      ranking: 'Syncing...',
-      contributionPoints: 0,
-      rank: 'Syncing...'
-    };
-  },
+    if (!clistUser || !clistKey) {
+      console.error('getContests: Missing Clist credentials');
+      return { data: [], isFallback: true };
+    }
 
-  // Combined stats fetch with caching logic should handle Firestore calls
-  // This service remains stateless; orchestration happens in the component
-  async getUserStats(uid) {
-    // This remains as a fallback or for other data not in CF/LC
-    return {
-      submissions: [
-        { id: 101, title: 'Real-time data sync active', platform: 'CompeteHub', result: 'Accepted', time: 'Just now', language: 'System' }
-      ]
-    };
-  },
+    const now = new Date().toISOString();
+    const endpoint = `https://clist.by/api/v1/contest/?resource_id__in=1,2,93,102&start__gt=${now}&order_by=start&limit=100&username=${clistUser}&api_key=${clistKey}`;
 
-  // Fetch daily submission counts for the Heatmap (GitHub Contributions)
-  async getSubmissionStats(identifier) {
-    if (!identifier) return {};
+    const proxiedUrl = `https://corsproxy.io/?${encodeURIComponent(endpoint)}`;
 
-    const directUrl = `https://github-contributions.vercel.app/api/v1/${identifier}`;
-    const proxiedUrl = `https://corsproxy.io/?${directUrl}`;
-
-    const attemptFetch = async (url) => {
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
-      if (!data.contributions || !Array.isArray(data.contributions)) {
-        throw new Error("Invalid format from GitHub API");
-      }
-      return data;
-    };
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s is plenty
 
     try {
-      // 1. Try Direct Fetch first (Fastest if not blocked)
-      try {
-        const data = await attemptFetch(directUrl);
-        return this.mapGithubContributions(data.contributions);
-      } catch (err) {
-        console.warn(`Direct GitHub fetch failed for ${identifier}, trying proxy...`);
-        // 2. Try Proxied Fetch (Standard fallback for CORS)
-        const data = await attemptFetch(proxiedUrl);
-        return this.mapGithubContributions(data.contributions);
+      const resp = await fetch(proxiedUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (resp.status === 429) {
+        console.warn('[ApiService] ⚠️ Rate limited by Clist. Falling back to cache/offline.');
+        if (cached) return { data: JSON.parse(cached), isFallback: true };
+        throw new Error("Rate limit exceeded");
       }
-    } catch (error) {
-      console.warn("GitHub Heatmap real-time fetch failed. Falling back to mock data.", error);
-      return this.generateMockHeatmap(identifier);
+
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+      const data = await resp.json();
+      const rawList = data.objects || [];
+
+      const contests = rawList
+        .map(item => this._normalizeContest(item))
+        .filter(Boolean)
+        .sort((a, b) => a.startTime - b.startTime)
+        .map((c, i) => ({ ...c, id: `clist-${i}` }));
+
+      if (contests.length === 0) throw new Error('No contests found');
+
+      // 2. Save to Session Storage
+      const finalData = contests.slice(0, 25);
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify(finalData));
+      sessionStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
+
+      return { data: finalData, isFallback: false };
+
+    } catch (err) {
+      clearTimeout(timeoutId);
+      console.warn('[ApiService] Fetch failed:', err.message);
+
+      return {
+        isFallback: true,
+        data: cached ? JSON.parse(cached) : [
+          { id: 'fb1', name: 'Codeforces (Offline Fallback)', url: 'https://codeforces.com', platform: 'Codeforces', startTime: Date.now() + 86400000, duration: 7200, color: '#1f6feb', tags: ['Offline'] },
+          { id: 'fb2', name: 'LeetCode (Offline Fallback)', url: 'https://leetcode.com', platform: 'LeetCode', startTime: Date.now() + 172800000, duration: 5400, color: '#f0a500', tags: ['Offline'] },
+        ],
+      };
     }
   },
+  /**
+   *
+   * @param {string} username 
+   * @returns {Record<string, number>}
+   */
+  async getGithubActivity(username) {
+    if (!username) return {};
 
-  // Robust mapping for GitHub API response
-  mapGithubContributions(contributions) {
-    const stats = {};
-    contributions.forEach(day => {
-      stats[day.date] = day.count;
-    });
-    return stats;
-  },
+    const targetUrl = `https://github-contributions.vercel.app/api/v1/${username}`;
+    const proxiedUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
 
-  // Seeded mock logic for fallback (consistent results for same handle)
-  generateMockHeatmap(identifier) {
-    const stats = {};
-    const today = new Date();
-    const seed = identifier.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const seededRandom = (s) => {
-      const x = Math.sin(s) * 10000;
-      return x - Math.floor(x);
-    };
+    try {
+      const resp = await fetch(proxiedUrl);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
-    for (let i = 0; i < 365; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      const dayHash = seed + i;
-      const rand = seededRandom(dayHash);
-      const dayOfWeek = date.getDay();
-      
-      let count = 0;
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Weekdays
-        if (rand > 0.4) count = Math.floor(rand * 8);
-      } else { // Weekends
-        if (rand > 0.8) count = Math.floor(rand * 5);
-      }
-      stats[dateStr] = count;
+      const data = await resp.json();
+      const contributions = Array.isArray(data.contributions) ? data.contributions : [];
+
+      const cutoff = Date.now() - 365 * 24 * 60 * 60 * 1000;
+      return contributions.reduce((acc, day) => {
+        if (new Date(day.date).getTime() >= cutoff) {
+          acc[day.date] = day.count;
+        }
+        return acc;
+      }, {});
+    } catch (err) {
+      console.warn('getGithubActivity: fetch failed, returning empty activity.', err.message);
+      return {};
     }
-    return stats;
-  }
+  },
 };

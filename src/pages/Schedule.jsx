@@ -40,10 +40,10 @@ const Schedule = () => {
 
   const platforms = [
     { name: 'All', color: 'var(--color-bg-tertiary)' },
-    { name: 'Codeforces', color: '#1f6feb' },
-    { name: 'LeetCode', color: '#f0a500' },
-    { name: 'AtCoder', color: '#596de9' },
-    { name: 'CodeChef', color: '#a1887f' }
+    { name: 'Codeforces', color: 'var(--color-platform-cf)' },
+    { name: 'LeetCode', color: 'var(--color-platform-lc)' },
+    { name: 'AtCoder', color: 'var(--color-platform-at)' },
+    { name: 'CodeChef', color: 'var(--color-platform-cc)' }
   ];
 
   const fetchContests = async () => {

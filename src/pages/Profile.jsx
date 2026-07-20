@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, MapPin, Building, Link as LinkIcon, Edit3, Award, Flame, Target, TrendingUp, TrendingDown, Clock, Save, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Calendar, MapPin, Building, Link as LinkIcon, Edit3, Award, Flame, Target, TrendingUp, TrendingDown, Clock, Save, Loader2, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { firebaseAuth } from '../firebase';
 import { apiService } from '../services/apiService';
@@ -8,24 +8,25 @@ import ContributionHeatmap from '../components/ContributionHeatmap';
 
 const Profile = () => {
   const { user, loading } = useAuth();
-  console.log("Profile Data:", user);
 
-  const [platforms, setPlatforms] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [saving, setSaving] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState(null);
   const [saveStatus, setSaveStatus] = useState(null);
 
-  // Missing state variables for user metrics and handles
   const [userStats, setUserStats] = useState({
     totalSolved: 0,
     currentStreak: 0,
     percentile: 'N/A'
   });
-  const [codeforcesHandle, setCodeforcesHandle] = useState('');
-  const [leetcodeUsername, setLeetcodeUsername] = useState('');
-  const [githubHandle, setGithubHandle] = useState('');
+
+  // Dynamic platform states
+  const [userPlatforms, setUserPlatforms] = useState([]);
+  const [availablePlatforms, setAvailablePlatforms] = useState([]);
+  const [newPlatformId, setNewPlatformId] = useState('');
+  const [newHandle, setNewHandle] = useState('');
+  const [githubHandle, setGithubHandle] = useState(''); // Kept separate as it's the primary heatmap source
 
   useEffect(() => {
     const fetchData = async () => {
@@ -33,111 +34,139 @@ const Profile = () => {
         setFetching(true);
         setError(null);
         try {
-          // 1. Get handles and cache from Firestore
+          // 1. Get available platforms from API
+          const allPlatforms = await apiService.getPlatforms();
+          setAvailablePlatforms(allPlatforms);
+
+          // 2. Get preferences from Firestore
           const prefs = await firebaseAuth.getUserPreferences(user.uid);
 
-          if (prefs) {
-            setCodeforcesHandle(prefs.codeforcesHandle || '');
-            setLeetcodeUsername(prefs.leetcodeUsername || '');
-            setGithubHandle(prefs.githubHandle || '');
+          const safePrefs = prefs || {};
+          let currentPlatforms = safePrefs?.userPlatforms || [];
+          const github = safePrefs?.githubHandle || '';
 
-            // Caching Logic: 1 hour (3600000ms)
-            const cacheAge = Date.now() - (prefs.lastFetchedTimestamp || 0);
-            const isCacheValid = cacheAge < 3600000;
-
-            let cfData = prefs.lastFetchedStats?.cf;
-            let lcData = prefs.lastFetchedStats?.lc;
-
-            // 2. Fetch fresh data if cache is invalid or missing
-            if (!isCacheValid || !cfData || !lcData) {
-              console.log("Fetching fresh API data...");
-              const [newCf, newLc] = await Promise.all([
-                apiService.getCodeforcesUser(prefs.codeforcesHandle),
-                apiService.getLeetCodeUser(prefs.leetcodeUsername)
-              ]);
-
-              cfData = newCf;
-              lcData = newLc;
-
-              // Only cache if it's not a temporary network error
-              if (newCf && !newCf.error && newLc && !newLc.error) {
-                await firebaseAuth.saveUserPreferences(user.uid, {
-                  lastFetchedStats: { cf: newCf, lc: newLc },
-                  lastFetchedTimestamp: Date.now()
-                });
-              }
+          // AUTO-MIGRATION: Convert old fields to array if needed
+          if (!safePrefs?.userPlatforms && (safePrefs?.codeforcesHandle || safePrefs?.leetcodeUsername)) {
+            console.log('[Migration] Detected legacy platforms, converting to userPlatforms array...');
+            if (safePrefs.codeforcesHandle) {
+              currentPlatforms.push({ id: '1', resourceId: 1, name: 'Codeforces', handle: prefs.codeforcesHandle });
             }
-
-            // 3. Map to UI State
-            const platformsList = [];
-            if (prefs.codeforcesHandle) {
-              platformsList.push({
-                id: 'cf',
-                name: 'Codeforces',
-                color: '#1f6feb',
-                bg: 'rgba(31,111,235,0.15)',
-                rating: cfData?.rating || 0,
-                maxRating: cfData?.maxRating || 0,
-                rank: cfData?.rank || 'N/A',
-                solved: 'Sync...',
-                trend: 'up',
-                error: cfData?.error
-              });
+            if (safePrefs.leetcodeUsername) {
+              currentPlatforms.push({ id: '2', resourceId: 102, name: 'LeetCode', handle: prefs.leetcodeUsername });
             }
-            if (prefs.leetcodeUsername) {
-              platformsList.push({
-                id: 'lc',
-                name: 'LeetCode',
-                color: '#f0a500',
-                bg: 'rgba(255,161,22,0.15)',
-                rating: lcData?.contributionPoints || 0,
-                maxRating: 'N/A',
-                solved: lcData?.totalSolved || 0,
-                rank: lcData?.rank || 'N/A',
-                trend: 'up',
-                error: lcData?.error
-              });
-            }
+            // Save migrated state back to Firestore
+            await firebaseAuth.saveUserPreferences(user.uid, { userPlatforms: currentPlatforms });
+          }
 
-            setPlatforms(platformsList);
-            setUserStats({
-              totalSolved: lcData?.totalSolved || 0,
-              currentStreak: 0,
-              percentile: lcData?.ranking ? `Rank ${lcData.ranking.toLocaleString()}` : 'N/A'
+          setUserPlatforms(currentPlatforms);
+          setGithubHandle(github);
+
+          // 3. Caching Logic
+          const cacheAge = Date.now() - (safePrefs.lastFetchedTimestamp || 0);
+          const isCacheValid = cacheAge < 3600000;
+          let statsMap = safePrefs.lastFetchedStats || {};
+
+          // 4. Fetch fresh data if invalid or missing
+          if (!isCacheValid || Object.keys(statsMap).length === 0) {
+            console.log('Fetching fresh stats for connected platforms...');
+            const freshStats = {};
+
+            await Promise.all(currentPlatforms.map(async (p) => {
+              const data = await apiService.getClistUserStats(p.handle, p.resourceId);
+              freshStats[p.id] = data;
+            }));
+
+            statsMap = freshStats;
+            await firebaseAuth.saveUserPreferences(user.uid, {
+              lastFetchedStats: statsMap,
+              lastFetchedTimestamp: Date.now()
             });
           }
 
-          const genericStats = await apiService.getUserStats(user.uid);
-          setSubmissions(genericStats.submissions);
+          // Calculate total solved from statsMap
+          let grandTotalSolved = 0;
+          Object.values(statsMap).forEach(s => {
+            if(s){
+              grandTotalSolved += (Number(s.n_solved) || 0);
+            }
+          });
+
+          setUserStats(prev => ({
+            ...prev,
+            totalSolved: grandTotalSolved,
+          }));
         } catch (err) {
           console.error("Profile Data Error:", err);
-          setSaveStatus({ type: 'error', message: "Data sync paused. Showing cached results." });
+          setSaveStatus({ type: 'error', message: "Data sync paused." });
         } finally {
           setFetching(false);
-          setError(null);
         }
       }
     };
     fetchData();
   }, [user]);
 
+  const enrichedPlatforms = useMemo(() => {
+    return (userPlatforms || []).map(p => {
+      const meta = availablePlatforms.find(m => m.id === Number(p.id)) || {};
+      return {
+        ...p,
+        color: meta.color || 'var(--color-text-muted)',
+        bg: meta.bg || 'var(--color-bg-tertiary)',
+        rating: p.rating || 0,
+        rank: p.rank || 'N/A',
+        solved: p.solved || 0,
+        trend: 'up'
+      };
+    });
+  }, [userPlatforms, availablePlatforms]);
+
   const handleSaveSettings = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setSaving(true);
     setSaveStatus(null);
     try {
-      await firebaseAuth.saveUserPreferences(user.uid, {
-        codeforcesHandle,
-        leetcodeUsername,
-        githubHandle
-      });
+      // 1. Save platforms using the specialized clean-array function
+      await firebaseAuth.saveUserPlatforms(user.uid, userPlatforms);
+      
+      // 2. Save other preferences
+      await firebaseAuth.saveUserPreferences(user.uid, { githubHandle });
+      
       setSaveStatus({ type: 'success', message: 'Settings saved successfully!' });
       setTimeout(() => setSaveStatus(null), 3000);
     } catch (error) {
+      console.error("Save Error:", error);
       setSaveStatus({ type: 'error', message: 'Failed to save settings.' });
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleAddPlatform = () => {
+    if (!newPlatformId || !newHandle) return;
+
+    const platformMeta = availablePlatforms.find(p => p.id === Number(newPlatformId));
+    if (!platformMeta) return;
+
+    // Check if already added
+    if (userPlatforms.some(p => p.id === String(platformMeta.id))) {
+      setSaveStatus({ type: 'error', message: 'Platform already connected.' });
+      return;
+    }
+
+    setUserPlatforms(prev => [...prev, {
+      id: String(platformMeta.id), // Use platformMeta.id as string for consistency
+      resourceId: platformMeta.resourceId,
+      name: platformMeta.name,
+      handle: newHandle.trim()
+    }]);
+
+    setNewPlatformId('');
+    setNewHandle('');
+  };
+
+  const handleRemovePlatform = (id) => {
+    setUserPlatforms((userPlatforms || []).filter(p => p.id !== id));
   };
 
   const getInitials = () => {
@@ -256,7 +285,7 @@ const Profile = () => {
         {/* Overall Stats Row */}
         <div className="flex-1 min-w-[300px] flex flex-col gap-4">
           <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-md p-4 flex items-center gap-4">
-            <div className="bg-[#1c2128] p-3 rounded-md"><Award className="text-[var(--color-accent-purple)]" size={24} /></div>
+            <div className="bg-[var(--color-bg-tertiary)] p-3 rounded-md"><Award className="text-[var(--color-accent-purple)]" size={24} /></div>
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1">Global Rating Percentile</div>
               <div className="font-mono text-2xl font-bold">Top <span className="text-[var(--color-accent-purple)]">{userStats.percentile}</span></div>
@@ -287,6 +316,7 @@ const Profile = () => {
           <ContributionHeatmap
             userId={user?.uid}
             githubUsername={githubHandle || user?.displayName?.replace(/\s+/g, '-').toLowerCase()}
+            platforms={userPlatforms || []}
           />
         </div>
 
@@ -302,31 +332,8 @@ const Profile = () => {
 
             <form onSubmit={handleSaveSettings} className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">Codeforces Handle</label>
-                <input
-                  type="text"
-                  value={codeforcesHandle}
-                  onChange={(e) => setCodeforcesHandle(e.target.value)}
-                  placeholder="e.g. tourist"
-                  className="bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded-md px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline focus:outline-2 focus:outline-[var(--color-accent-blue)] focus:outline-offset-1 transition-all"
-                  disabled={fetching}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">LeetCode Username</label>
-                <input
-                  type="text"
-                  value={leetcodeUsername}
-                  onChange={(e) => setLeetcodeUsername(e.target.value)}
-                  placeholder="e.g. lc_user"
-                  className="bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded-md px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline focus:outline-2 focus:outline-[var(--color-accent-blue)] focus:outline-offset-1 transition-all"
-                  disabled={fetching}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">GitHub Username (for Heatmap)</label>
+                <label className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)] font-mono">GitHub Username</label>
+                <div className="text-[10px] text-[var(--color-text-muted)] -mt-1 mb-1 italic">Used for GitHub contributions on the heatmap</div>
                 <input
                   type="text"
                   value={githubHandle}
@@ -335,6 +342,39 @@ const Profile = () => {
                   className="bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded-md px-3 py-1.5 text-sm text-[var(--color-text-primary)] focus:outline focus:outline-2 focus:outline-[var(--color-accent-blue)] focus:outline-offset-1 transition-all"
                   disabled={fetching}
                 />
+              </div>
+
+              <div className="pt-2 border-t border-[var(--color-border-muted)]">
+                <label className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)] mb-2 block">Manage Platforms</label>
+                <div className="flex flex-col gap-3 p-3 bg-[var(--color-bg-primary)] rounded-md border border-[var(--color-border-muted)]">
+                  <select
+                    value={newPlatformId}
+                    onChange={(e) => setNewPlatformId(e.target.value)}
+                    className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-md px-2 py-1.5 text-xs text-[var(--color-text-primary)] w-full focus:outline-none"
+                  >
+                    <option value="">Select Platform...</option>
+                    {availablePlatforms.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newHandle}
+                      onChange={(e) => setNewHandle(e.target.value)}
+                      placeholder="Handle/Username"
+                      className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-md px-3 py-1.5 text-xs text-[var(--color-text-primary)] flex-1 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddPlatform}
+                      className="bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] hover:border-[var(--color-text-secondary)] p-1.5 rounded-md transition-all"
+                      title="Add Platform"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <button
@@ -356,37 +396,47 @@ const Profile = () => {
 
           <h3 className="text-[16px] font-semibold text-[var(--color-text-primary)] mb-1 border-b border-[var(--color-border-muted)] pb-2">Connected Platforms</h3>
 
-          {platforms.map(platform => (
-            <div key={platform.id} className={`bg-[var(--color-bg-secondary)] border ${platform.error ? 'border-[var(--color-accent-red)] shadow-[0_0_10px_rgba(248,81,73,0.1)]' : 'border-[var(--color-border)]'} rounded-md p-4 card-hover w-full cursor-pointer flex items-center justify-between group`}>
+          {enrichedPlatforms?.map(platform => (
+            <div key={platform.id} className={`bg-[var(--color-bg-secondary)] border ${platform.error ? 'border-[var(--color-accent-red)] shadow-[0_0_10px_rgba(248,81,73,0.1)]' : 'border-[var(--color-border)]'} rounded-md p-4 card-hover w-full flex items-center justify-between group`}>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-md flex items-center justify-center font-bold text-white shadow-sm flex-shrink-0 border border-[#30363d]" style={{ backgroundColor: platform.color, backgroundImage: `linear-gradient(rgba(255,255,255,0.1), rgba(255,255,255,0))` }}>
+                <div className="w-10 h-10 rounded-md flex items-center justify-center font-bold text-white shadow-sm flex-shrink-0 border border-[var(--color-border)]" style={{ backgroundColor: platform.color, backgroundImage: `linear-gradient(rgba(255,255,255,0.1), rgba(255,255,255,0))` }}>
                   {platform.name.charAt(0)}
                 </div>
                 <div>
                   <h4 className="text-sm font-semibold text-[var(--color-text-primary)] flex items-center gap-2 group-hover:text-[var(--color-accent-blue)] transition-colors">
                     {platform.name}
-                    <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-secondary)] font-medium border border-[var(--color-border-muted)] px-1.5 py-0.5 rounded-sm bg-[#1b1f24]">{platform.rank}</span>
+                    <span className="text-[10px] uppercase tracking-wider text-[var(--color-text-secondary)] font-medium border border-[var(--color-border-muted)] px-1.5 py-0.5 rounded-sm bg-[var(--color-bg-primary)]">{platform.rank}</span>
                   </h4>
                   <div className="flex items-center gap-3 mt-1 text-xs font-mono text-[var(--color-text-muted)]">
                     <span title="Current Rating" className={platform.trend === 'up' ? 'text-[var(--color-accent-green)] font-semibold' : 'text-[var(--color-accent-red)] font-semibold'}>{platform.rating}</span>
-                    <span title="Max Rating">(Max: {platform.maxRating})</span>
+                    <span title="Handle">({platform.handle})</span>
                     <span title="Problems Solved">✓ {platform.solved}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Tiny SVG sparkline mock */}
-              <div className="w-[60px] h-[30px] opacity-70">
-                <svg viewBox="0 0 100 30" className="w-full h-full" preserveAspectRatio="none">
-                  <path
-                    d={platform.trend === 'up' ? "M0,30 L20,20 L40,25 L60,10 L80,15 L100,5" : "M0,10 L20,5 L40,15 L60,10 L80,25 L100,20"}
-                    fill="none"
-                    stroke={platform.trend === 'up' ? 'var(--color-accent-green)' : 'var(--color-accent-red)'}
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+              <div className="flex items-center gap-3">
+                {/* Tiny SVG sparkline mock */}
+                <div className="w-[40px] h-[20px] opacity-70 hidden sm:block">
+                  <svg viewBox="0 0 100 30" className="w-full h-full" preserveAspectRatio="none">
+                    <path
+                      d={platform.trend === 'up' ? "M0,30 L20,20 L40,25 L60,10 L80,15 L100,5" : "M0,10 L20,5 L40,15 L60,10 L80,25 L100,20"}
+                      fill="none"
+                      stroke={platform.trend === 'up' ? 'var(--color-accent-green)' : 'var(--color-accent-red)'}
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemovePlatform(platform.id)}
+                  className="text-[var(--color-text-muted)] hover:text-[var(--color-accent-red)] p-1 opacity-0 group-hover:opacity-100 transition-all"
+                  title="Remove Platform"
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
             </div>
           ))}
@@ -411,10 +461,10 @@ const Profile = () => {
             </thead>
             <tbody className="divide-y divide-[var(--color-border-muted)] text-[13px]">
               {submissions.map(sub => (
-                <tr key={sub.id} className="hover:bg-[#1c2128] transition-colors cursor-pointer group">
+                <tr key={sub.id} className="hover:bg-[var(--color-bg-tertiary)] transition-colors cursor-pointer group">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: platforms.find(p => p.name === sub.platform)?.color || '#30363d' }}></span>
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: enrichedPlatforms?.find(p => p.name === sub.platform)?.color || 'var(--color-border)' }}></span>
                       <span className="font-medium text-[var(--color-text-primary)] group-hover:text-[var(--color-accent-blue)] transition-colors truncate max-w-[150px] sm:max-w-none">{sub.title}</span>
                       <span className="text-[11px] text-[var(--color-text-muted)] ml-2 hidden sm:inline">{sub.platform}</span>
                     </div>

@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState, memo } from 'react';
-import { apiService } from '../services/apiService';
+import { getUnifiedActivity } from '../services/activityService';
 import { formatDateIST } from '../utils/dateUtils';
 
 // ── Skeleton ────────────────────────────────────────────────────────────────
@@ -69,8 +69,8 @@ const HeatmapSkeleton = () => (
 );
 
 // ── Heatmap ──────────────────────────────────────────────────────────────────
-const ContributionHeatmap = memo(({ userId, githubUsername }) => {
-  const [externalStats, setExternalStats] = useState({});
+const ContributionHeatmap = memo(({ userId, githubUsername, userPlatforms = [], manualData = null }) => {
+  const [internalStats, setInternalStats] = useState({});
   const [loading, setLoading] = useState(false);
 
   // Constants for styling
@@ -83,27 +83,53 @@ const ContributionHeatmap = memo(({ userId, githubUsername }) => {
   };
 
   useEffect(() => {
+    // Skip fetching if data is provided manually (Unified Dashboard mode)
+    if (manualData) return;
+
     const fetchStats = async () => {
-      if (userId || githubUsername) {
+      // Build a unified platform list for the service
+      const unifiedPlatforms = [...(userPlatforms || [])];
+      
+      const gh = githubUsername || userId;
+      if (gh && !unifiedPlatforms.some(p => p.resourceId === 'github')) {
+        unifiedPlatforms.push({ resourceId: 'github', handle: gh, name: 'GitHub' });
+      }
+
+      if (unifiedPlatforms.length > 0) {
         setLoading(true);
         try {
-          const stats = await apiService.getSubmissionStats(githubUsername || userId);
-          setExternalStats(stats);
+          const { activityData } = await getUnifiedActivity(unifiedPlatforms);
+          setInternalStats(activityData);
         } catch (error) {
-          console.error("Error fetching heatmap stats:", error);
+          console.error('[ContributionHeatmap] Unexpected fetch error:', error);
         } finally {
           setLoading(false);
         }
       }
     };
     fetchStats();
-  }, [userId, githubUsername]);
+  }, [userId, githubUsername, JSON.stringify(userPlatforms), manualData]);
+
+  const activeStats = manualData || internalStats;
 
   // Generate 365 days of data ending today
   const heatmapData = useMemo(() => {
+    console.log("[HeatmapUI] Received Data:", Object.keys(activeStats).length + " days");
+    
+    // Calculate dynamic thresholds based on max activity
+    const counts = Object.values(activeStats).filter(v => typeof v === 'number');
+    const maxCount = counts.length > 0 ? Math.max(...counts) : 10;
+    
+    // Dynamic thresholds: 25%, 50%, 75%, 100% of max
+    const t1 = Math.max(1, Math.floor(maxCount * 0.25));
+    const t2 = Math.max(2, Math.floor(maxCount * 0.50));
+    const t3 = Math.max(4, Math.floor(maxCount * 0.75));
+    const t4 = Math.max(6, Math.floor(maxCount * 0.90));
+
     const data = [];
     const today = new Date();
     const endDate = new Date(today);
+    endDate.setHours(0, 0, 0, 0); // Normalize to start of day
     
     // Starting from 364 days ago to maintain exactly 365 days
     const startDate = new Date(endDate);
@@ -119,15 +145,17 @@ const ContributionHeatmap = memo(({ userId, githubUsername }) => {
     }
 
     while (currentDate <= endDate) {
+      // Use IST-consistent YYYY-MM-DD or simple ISO split
+      // We must match the fetcher's format: toISOString().split('T')[0]
       const dateStr = currentDate.toISOString().split('T')[0];
-      const count = externalStats[dateStr] || 0;
+      const count = Number(activeStats[dateStr]) || 0;
       
-      // Determine level (0-4)
+      // Determine level (0-4) based on dynamic thresholds
       let level = 0;
       if (count > 0) level = 1;
-      if (count >= 2) level = 2;
-      if (count >= 4) level = 3;
-      if (count >= 6) level = 4;
+      if (count >= t2) level = 2;
+      if (count >= t3) level = 3;
+      if (count >= t4) level = 4;
 
       currentWeek.push({
         date: new Date(currentDate),
@@ -151,7 +179,7 @@ const ContributionHeatmap = memo(({ userId, githubUsername }) => {
     }
 
     return data;
-  }, [externalStats]);
+  }, [activeStats]);
 
   // Month labels logic
   const monthLabels = useMemo(() => {
@@ -175,7 +203,19 @@ const ContributionHeatmap = memo(({ userId, githubUsername }) => {
     return labels.filter((label, i) => i === 0 || label.index - labels[i - 1].index > 2);
   }, [heatmapData]);
 
-  if (loading) return <HeatmapSkeleton />;
+  if (loading) return (
+    <div className="relative">
+      <HeatmapSkeleton />
+      <div className="absolute inset-0 flex flex-col items-center justify-center bg-[var(--color-bg-primary)]/50 backdrop-blur-[1px] rounded-lg">
+        <p className="text-sm font-medium text-[var(--color-text-primary)] animate-pulse">
+          Loading activity data...
+        </p>
+        <p className="text-xs text-[var(--color-text-muted)] mt-1">
+          Aggregating GitHub, LeetCode, and Codeforces
+        </p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="border border-[var(--color-border)] rounded-lg p-4 bg-[var(--color-bg-primary)] mt-4">

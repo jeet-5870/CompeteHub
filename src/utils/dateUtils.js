@@ -1,9 +1,4 @@
 /**
- * Centralized Date Utilities for CompeteHub
- */
-
-/**
- * Formats a date to IST string (e.g., "15 March, 2026")
  * @param {Date | string | number} date 
  * @returns {string}
  */
@@ -16,10 +11,6 @@ export const formatDateIST = (date) => {
   });
 };
 
-/**
- * Formats a date to a relative time string (e.g., "in 2 hours")
- * Useful for the Schedule page
- */
 export const formatRelativeTime = (timestamp) => {
   const now = new Date().getTime();
   const diff = timestamp - now;

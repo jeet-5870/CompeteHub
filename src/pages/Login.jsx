@@ -13,21 +13,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Handle redirect result on mount
-  useEffect(() => {
-    const handleRedirect = async () => {
-      try {
-        const user = await firebaseAuth.getRedirectUser();
-        if (user) {
-          navigate('/platforms');
-        }
-      } catch (err) {
-        console.error("Redirect Auth Error:", err.code, err.message);
-        setError(mapAuthError(err));
-      }
-    };
-    handleRedirect();
-  }, [navigate]);
+
 
   const mapAuthError = (err) => {
     let themedMessage = err.message;
@@ -35,7 +21,7 @@ const Login = () => {
     if (err.code === 'auth/user-not-found') themedMessage = "Email not found. Please sign up first.";
     if (err.code === 'auth/wrong-password') themedMessage = "Incorrect password. Please try again.";
     if (err.code === 'auth/popup-closed-by-user') themedMessage = "Login cancelled by user.";
-    if (err.code === 'auth/internal-assertion-failed') themedMessage = "Authentication engine error. Using redirect flow should resolve this.";
+    if (err.code === 'auth/internal-assertion-failed') themedMessage = "Authentication engine error. Please try clearing your browser cache.";
     return themedMessage;
   };
 
@@ -53,15 +39,7 @@ const Login = () => {
   };
 
   const handleOAuthLogin = async (providerName) => {
-    setError(null);
-    setLoading(true);
-    try {
-      await firebaseAuth.oauthRedirect(providerName);
-      // Page will redirect — no further action needed
-    } catch (err) {
-      setError(mapAuthError(err));
-      setLoading(false);
-    }
+    await authenticate(firebaseAuth.oauthSignIn(providerName));
   };
 
   const authenticate = async (authPromise) => {

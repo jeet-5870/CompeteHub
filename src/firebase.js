@@ -3,8 +3,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   GithubAuthProvider,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   setPersistence,
@@ -12,15 +11,10 @@ import {
   browserSessionPersistence,
   signOut
 } from "firebase/auth";
-import {
-  setPersistence,
-  browserLocalPersistence,
-  browserSessionPersistence
-} from "firebase/auth";
 import { initializeFirestore, doc, setDoc, getDoc } from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
+import { getAnalytics } from "firebase/analytics";
 
-// Your web app's Firebase configuration 
-// (User is expected to swap this config temporarily via the UI or `.env`)
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -30,50 +24,43 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-});
+export const db = getFirestore(app);
 
-// Auth Providers
 export const googleProvider = new GoogleAuthProvider();
 export const githubProvider = new GithubAuthProvider();
 
 export const firebaseAuth = {
-  async login(email, password, remember = false) { // Add remember parameter
+  /**
+   * @param {boolean} remember
+   */
+  async login(email, password, remember = false) {
     try {
-      // Set persistence based on checkbox
       const persistence = remember ? browserLocalPersistence : browserSessionPersistence;
       await setPersistence(auth, persistence);
 
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      return userCredential.user;
-    } catch (error) {
-      console.error("Firebase Login Error:", error.code, error.message);
-      throw error;
-    }
-  },
-  // Login with Email/Password
-  // rememberMe=true → persist across browser sessions (localStorage)
-  // rememberMe=false → persist only for this tab (sessionStorage)
-  async login(email, password, rememberMe = true) {
-    try {
-      const persistence = rememberMe ? browserLocalPersistence : browserSessionPersistence;
-      await setPersistence(auth, persistence);
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      return userCredential.user;
-    } catch (error) {
-      console.error("Firebase Login Error:", error.code, error.message);
-      throw error;
-    }
-  },
 
-  // Signup with Email/Password
+      localStorage.setItem('ch_last_activity', Date.now().toString());
+
+      return userCredential.user;
+    } catch (error) {
+      console.error("Firebase Login Error:", error.code, error.message);
+      throw error;
+    }
+  },
   async register(username, email, password) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await this.saveUserPreferences(userCredential.user.uid, {
+        username,
+        email,
+        userPlatforms: [],
+        githubHandle: '',
+        isProfileComplete: false,
+        createdAt: new Date().toISOString()
+      });
       return userCredential.user;
     } catch (error) {
       console.error("Firebase Register Error:", error.code, error.message);
@@ -81,24 +68,24 @@ export const firebaseAuth = {
     }
   },
 
-  // Initiate OAuth redirect (Google or GitHub)
-  // Call this when the user clicks a social login button.
-  async oauthRedirect(providerName) {
-    const provider = providerName === 'github' ? githubProvider : googleProvider;
-    await signInWithRedirect(auth, provider);
-    // The page will navigate away — no return value.
+  async oauthSignIn(providerName) {
+    try {
+      const provider = providerName === 'github' ? githubProvider : googleProvider;
+      await setPersistence(auth, browserLocalPersistence);
+      const result = await signInWithPopup(auth, provider);
+
+      localStorage.setItem('ch_last_activity', Date.now().toString());
+      return result.user;
+    } catch (error) {
+      console.error("Firebase OAuth Error:", error.code, error.message);
+      throw error;
+    }
   },
 
-  // Capture the OAuth result after returning from the provider redirect.
-  // Call this once on mount in Login/Signup components.
-  async getRedirectUser() {
-    const result = await getRedirectResult(auth);
-    return result?.user ?? null;
-  },
-
-  // Logout
   async logout() {
     try {
+      localStorage.removeItem('ch_last_activity');
+      localStorage.removeItem('ch_login_ts');
       await signOut(auth);
     } catch (error) {
       console.error("Firebase Logout Error:", error.code, error.message);
@@ -106,7 +93,6 @@ export const firebaseAuth = {
     }
   },
 
-  // Firestore: Save User Preferences
   async saveUserPreferences(uid, data) {
     try {
       const userRef = doc(db, "users", uid);
@@ -116,19 +102,29 @@ export const firebaseAuth = {
       throw error;
     }
   },
+  async saveUserPlatforms(uid, userPlatforms) {
+    try {
+      if (!Array.isArray(userPlatforms)) {
+        throw new Error("userPlatforms must be an array");
+      }
+      const userRef = doc(db, "users", uid);
+      await setDoc(userRef, { userPlatforms }, { merge: true });
+    } catch (error) {
+      console.error("Firestore Save Platforms Error:", error.code, error.message);
+      throw error;
+    }
+  },
 
-  // Firestore: Get User Preferences
   async getUserPreferences(uid) {
     try {
       const userRef = doc(db, "users", uid);
       const docSnap = await getDoc(userRef);
-      if (docSnap.exists()) {
-        return docSnap.data();
-      }
-      return null;
+      return docSnap.exists() ? docSnap.data() : null;
     } catch (error) {
       console.error("Firestore Fetch Error:", error.code, error.message);
       throw error;
     }
   }
 };
+
+const analytics = getAnalytics(app);

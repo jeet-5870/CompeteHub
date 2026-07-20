@@ -13,21 +13,7 @@ const Signup = () => {
 
   const navigate = useNavigate();
 
-  // Handle redirect result on mount
-  useEffect(() => {
-    const handleRedirect = async () => {
-      try {
-        const user = await firebaseAuth.getRedirectUser();
-        if (user) {
-          navigate('/platforms');
-        }
-      } catch (err) {
-        console.error("Redirect Auth Error:", err.code, err.message);
-        setError(mapAuthError(err));
-      }
-    };
-    handleRedirect();
-  }, [navigate]);
+
 
   const mapAuthError = (err) => {
     let themedMessage = err.message;
@@ -36,7 +22,7 @@ const Signup = () => {
     if (err.code === 'auth/operation-not-allowed') themedMessage = "This authentication method is currently disabled.";
     if (err.code === 'auth/weak-password') themedMessage = "Password is too weak. Please use at least 6 characters.";
     if (err.code === 'auth/popup-closed-by-user') themedMessage = "Signup cancelled by user.";
-    if (err.code === 'auth/internal-assertion-failed') themedMessage = "Authentication engine error (Assertion Failed). Using redirect flow should resolve this.";
+    if (err.code === 'auth/internal-assertion-failed') themedMessage = "Authentication engine error. Please try again or clear browser cache.";
     return themedMessage;
   };
 
@@ -54,15 +40,7 @@ const Signup = () => {
   };
 
   const handleOAuthSignup = async (providerName) => {
-    setError(null);
-    setLoading(true);
-    try {
-      await firebaseAuth.oauthRedirect(providerName);
-      // Page will redirect — no further action needed
-    } catch (err) {
-      setError(mapAuthError(err));
-      setLoading(false);
-    }
+    await authenticate(firebaseAuth.oauthSignIn(providerName));
   };
 
   const authenticate = async (authPromise) => {

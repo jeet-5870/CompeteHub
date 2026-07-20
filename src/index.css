@@ -18,6 +18,18 @@
   --color-btn-primary-bg: #238636;
   --color-btn-primary-border: #2ea043;
   
+  /* Platform Colors */
+  --color-platform-cf: #1f6feb;
+  --color-platform-lc: #f0a500;
+  --color-platform-at: #596de9;
+  --color-platform-cc: #a1887f;
+  --color-platform-hr: #3fb950;
+  --color-platform-he: #8957e5;
+
+  /* UI Effects */
+  --color-glass-primary: rgba(13, 17, 23, 0.95);
+  --color-glass-secondary: rgba(22, 27, 34, 0.85);
+  
   --font-mono: "JetBrains Mono", "Fira Code", monospace;
   --font-sans: "Geist", "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
   --font-heading: "Mona Sans", "JetBrains Mono", -apple-system, "Segoe UI", sans-serif;
@@ -54,6 +66,6 @@
   }
   .card-hover:hover {
     border-color: var(--color-text-secondary);
-    background-color: #1c2128;
+    background-color: var(--color-bg-secondary);
   }
 }

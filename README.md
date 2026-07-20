@@ -28,19 +28,19 @@
 
 ---
 
-## 🌟 What is CompeteHub?
+## What is CompeteHub?
 
 CompeteHub is a single-page dashboard built for competitive programmers. It consolidates your stats from **Codeforces**, **LeetCode**, **AtCoder**, and **CodeChef** into one sleek interface — no more switching between tabs during contest prep.
 
 ---
 
-## ✨ Feature Overview
+## Feature Overview
 
 <table>
 <tr>
 <td width="50%">
 
-### 🔐 Authentication
+### Authentication
 - Email/password with regex validation  
 - Google OAuth (redirect flow)  
 - GitHub OAuth (redirect flow)  
@@ -62,7 +62,7 @@ CompeteHub is a single-page dashboard built for competitive programmers. It cons
 <tr>
 <td width="50%">
 
-### 🏅 Platform Hub
+### Platform Hub
 - Overview cards for 5 major OJ platforms  
 - Real-time Codeforces rating + rank  
 - LeetCode problems solved + global ranking  
@@ -71,7 +71,7 @@ CompeteHub is a single-page dashboard built for competitive programmers. It cons
 </td>
 <td width="50%">
 
-### 👤 Profile & Heatmap
+### Profile & Heatmap
 - GitHub-style 365-day contribution heatmap  
 - Real data fetched from GitHub Contributions API  
 - Direct → CORS proxy fallback strategy  
@@ -84,7 +84,7 @@ CompeteHub is a single-page dashboard built for competitive programmers. It cons
 
 ---
 
-## 🗂️ Project Structure
+## Project Structure
 
 ```
 competehub/
@@ -107,7 +107,7 @@ competehub/
 │   ├── utils/
 │   │   └── dateUtils.js              # IST/UTC date formatting
 │   └── firebase.js                   # Firebase init, auth & Firestore helpers
-├── .env                              # 🔒 Secret keys (never committed)
+├── .env                              
 ├── .gitignore
 ├── index.html
 ├── vite.config.js
@@ -128,7 +128,7 @@ competehub/
 ### 1 — Clone & Install
 
 ```bash
-git clone https://github.com/your-username/competehub.git
+git clone https://github.com/jeet-5870/competehub.git
 cd competehub
 npm install
 ```

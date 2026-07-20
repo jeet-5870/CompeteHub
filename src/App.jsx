@@ -5,22 +5,20 @@ import Signup from './pages/Signup';
 import Platforms from './pages/Platforms';
 import Schedule from './pages/Schedule';
 import Profile from './pages/Profile';
+import Dashboard from './pages/Dashboard';
 import Navbar from './components/Navbar';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/AuthContext';
 import { ACTIVITY_KEY } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
-// ── Inner component so we can call useAuth (must be inside AuthProvider) ──────
 function AppRoutes() {
   const { user } = useAuth();
   const lastWriteRef = useRef(0);
 
   useEffect(() => {
-    if (!user) return; // Only track activity for authenticated users
-
-    const THROTTLE_MS = 60_000; // Write at most once per minute
-
+    if (!user) return;
+    const THROTTLE_MS = 60_000;
     const updateActivity = () => {
       const now = Date.now();
       if (now - lastWriteRef.current > THROTTLE_MS) {
@@ -46,10 +44,11 @@ function AppRoutes() {
             <Navbar />
             <main className="max-w-[1200px] mx-auto w-full">
               <Routes>
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/platforms" element={<Platforms />} />
                 <Route path="/schedule"  element={<Schedule />} />
                 <Route path="/profile"   element={<Profile />} />
-                <Route path="*"          element={<Navigate to="/platforms" replace />} />
+                <Route path="*"          element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </main>
           </div>
